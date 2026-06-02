@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ResearchMind – AI Literature Review Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--border:#2a2a3a;--border2:#3a3a50;
+    --accent:#7c6af7;--accent2:#a594f9;--accent-dim:#2a2540;
+    --teal:#2dd4bf;--teal-dim:#0d2d2a;
+    --amber:#fbbf24;--amber-dim:#2d200a;
+    --red:#f87171;--red-dim:#2d0f0f;
+    --green:#4ade80;--green-dim:#0a2d16;
+    --text:#e8e8f0;--text2:#9898b0;--text3:#5a5a70;
+    --font-display:'DM Serif Display',serif;
+    --font-ui:'Syne',sans-serif;
+    --font-mono:'DM Mono',monospace;
+    --radius:8px;--radius-lg:14px;--radius-xl:20px;
+  }
+  body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:15px;line-height:1.6;min-height:100vh}
+
+  .app{display:grid;grid-template-rows:auto 1fr;min-height:100vh}
+  .header{padding:1.5rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;background:var(--surface)}
+  .logo{font-family:var(--font-display);font-size:1.6rem;color:var(--text);letter-spacing:-0.02em}
+  .logo span{color:var(--accent2)}
+  .beta{font-family:var(--font-mono);font-size:10px;background:var(--accent-dim);color:var(--accent2);padding:2px 7px;border-radius:20px;border:1px solid var(--accent)}
+  .nav-tabs{display:flex;gap:4px;margin-left:auto}
+  .nav-tab{font-family:var(--font-ui);font-size:13px;padding:5px 14px;border:1px solid transparent;border-radius:var(--radius);cursor:pointer;background:none;color:var(--text2);transition:all 0.15s}
+  .nav-tab.active,.nav-tab:hover{background:var(--surface2);color:var(--text);border-color:var(--border)}
+  .nav-tab.active{color:var(--accent2);border-color:var(--accent-dim)}
+  .nav-tab:disabled{opacity:0.3;cursor:not-allowed;pointer-events:none}
+
+  .main{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 65px)}
+  .sidebar{border-right:1px solid var(--border);background:var(--surface);padding:1.5rem;overflow-y:auto;display:flex;flex-direction:column;gap:1.5rem}
+  .panel{flex:1;overflow-y:auto;padding:2rem;background:var(--bg)}
+
+  .sidebar-section{display:flex;flex-direction:column;gap:0.75rem}
+  .sidebar-label{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);font-family:var(--font-mono)}
+
+  .upload-zone{border:1.5px dashed var(--border2);border-radius:var(--radius-lg);padding:1.5rem;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2)}
+  .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-dim)}
+  .upload-zone i{font-size:28px;color:var(--text3);display:block;margin-bottom:0.5rem}
+  .upload-zone p{font-size:12px;color:var(--text2);line-height:1.4}
+  .upload-zone input{display:none}
+
+  .paper-list{display:flex;flex-direction:column;gap:6px}
+  .paper-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:flex-start;gap:8px;position:relative}
+  .paper-item.processing{border-color:var(--accent-dim);animation:pulse 2s infinite}
+  .paper-item.done{border-color:var(--green-dim)}
+  .paper-item.error{border-color:var(--red-dim)}
+  .paper-item.escalated{border-color:var(--amber-dim)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
+  .paper-title{font-size:12px;color:var(--text);flex:1;line-height:1.3;font-family:var(--font-mono)}
+  .paper-status{font-size:10px;margin-top:3px}
+  .paper-status.done{color:var(--green)}
+  .paper-status.processing{color:var(--accent2)}
+  .paper-status.error{color:var(--red)}
+  .paper-status.escalated{color:var(--amber)}
+  .paper-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0;line-height:1}
+  .paper-remove:hover{color:var(--red)}
+
+  .btn{font-family:var(--font-ui);font-size:13px;font-weight:500;padding:9px 18px;border-radius:var(--radius);cursor:pointer;transition:all 0.15s;border:1px solid;display:flex;align-items:center;gap:6px;justify-content:center;width:100%}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn-primary:hover{background:#6958e0}
+  .btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+  .btn-outline{background:none;color:var(--text2);border-color:var(--border2)}
+  .btn-outline:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+  .btn-sm{padding:5px 12px;font-size:12px}
+
+  .confidence-bar{display:flex;align-items:center;gap:8px;font-size:12px}
+  .confidence-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+  .confidence-fill{height:100%;border-radius:2px;transition:width 0.5s}
+
+  .view{display:none}
+  .view.active{display:block}
+
+  .welcome{max-width:640px;margin:3rem auto;text-align:center}
+  .welcome h1{font-family:var(--font-display);font-size:2.8rem;color:var(--text);margin-bottom:1rem;line-height:1.15}
+  .welcome h1 em{color:var(--accent2);font-style:italic}
+  .welcome p{font-size:15px;color:var(--text2);line-height:1.7;margin-bottom:2rem}
+  .welcome-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:2rem;text-align:left}
+  .wcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem}
+  .wcard i{font-size:22px;color:var(--accent2);margin-bottom:8px;display:block}
+  .wcard h3{font-size:13px;font-weight:600;margin-bottom:4px}
+  .wcard p{font-size:12px;color:var(--text2);line-height:1.4}
+
+  .results-header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+  .results-header h2{font-family:var(--font-display);font-size:1.8rem;flex:1}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:2rem}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem}
+  .stat-num{font-size:2rem;font-weight:700;font-family:var(--font-mono)}
+  .stat-label{font-size:11px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px}
+  .stat.accent .stat-num{color:var(--accent2)}
+  .stat.teal .stat-num{color:var(--teal)}
+  .stat.amber .stat-num{color:var(--amber)}
+  .stat.red .stat-num{color:var(--red)}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem}
+  .card-header{display:flex;align-items:center;gap:8px;margin-bottom:1rem}
+  .card-icon{font-size:18px;color:var(--accent2)}
+  .card-title{font-weight:600;font-size:14px;flex:1}
+  .card-badge{font-size:10px;font-family:var(--font-mono);padding:3px 8px;border-radius:20px}
+  .badge-new{background:var(--green-dim);color:var(--green);border:1px solid #1a4d2e}
+  .badge-flag{background:var(--amber-dim);color:var(--amber);border:1px solid #4d3010}
+  .badge-info{background:var(--accent-dim);color:var(--accent2);border:1px solid #3a3060}
+
+  .matrix-wrap{overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{background:var(--surface2);padding:10px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text2);font-family:var(--font-mono);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.4;color:var(--text)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--surface2)}
+  .cell-tag{display:inline-block;background:var(--accent-dim);color:var(--accent2);font-size:10px;padding:2px 7px;border-radius:20px;margin:1px 2px;font-family:var(--font-mono)}
+  .cell-tag.teal{background:var(--teal-dim);color:var(--teal)}
+  .cell-tag.green{background:var(--green-dim);color:var(--green)}
+  .cell-tag.red{background:var(--red-dim);color:var(--red)}
+
+  .gap-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .gap-item{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:var(--radius-lg);padding:1rem}
+  .gap-item h4{font-size:13px;font-weight:600;margin-bottom:6px;color:var(--teal)}
+  .gap-item p{font-size:12px;color:var(--text2);line-height:1.5}
+  .gap-item.trend{border-left-color:var(--accent2)}
+  .gap-item.trend h4{color:var(--accent2)}
+  .gap-item.limitation{border-left-color:var(--amber)}
+  .gap-item.limitation h4{color:var(--amber)}
+
+  .qa-wrap{max-width:720px}
+  .qa-history{display:flex;flex-direction:column;gap:12px;margin-bottom:1.5rem;max-height:380px;overflow-y:auto;padding-right:4px}
+  .qa-bubble{padding:12px 16px;border-radius:var(--radius-lg);font-size:13px;line-height:1.6}
+  .qa-bubble.user{background:var(--accent-dim);border:1px solid var(--accent);color:var(--text);align-self:flex-end;max-width:85%}
+  .qa-bubble.agent{background:var(--surface);border:1px solid var(--border);color:var(--text2)}
+  .qa-bubble.agent .cite{color:var(--accent2);font-size:11px;font-family:var(--font-mono);margin-top:6px}
+  .qa-input-row{display:flex;gap:8px}
+  .qa-input{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:var(--font-ui);font-size:13px}
+  .qa-input:focus{outline:none;border-color:var(--accent)}
+  .qa-send{background:var(--accent);border:none;color:#fff;border-radius:var(--radius);padding:10px 16px;cursor:pointer;font-size:16px;transition:background 0.15s}
+  .qa-send:hover{background:#6958e0}
+  .qa-send:disabled{opacity:0.4;cursor:not-allowed}
+  .qa-suggestion{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem}
+  .qa-chip{font-size:11px;padding:5px 11px;border:1px solid var(--border2);border-radius:20px;background:none;color:var(--text2);cursor:pointer;font-family:var(--font-ui);transition:all 0.15s}
+  .qa-chip:hover{border-color:var(--accent);color:var(--accent2)}
+
+  .escalation-item{background:var(--surface);border:1px solid var(--amber-dim);border-left:3px solid var(--amber);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:10px}
+  .escalation-item h4{font-size:13px;font-weight:600;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .escalation-item p{font-size:12px;color:var(--text2);line-height:1.5}
+  .escalation-meta{display:flex;gap:8px;margin-top:8px}
+  .emeta{font-size:10px;font-family:var(--font-mono);padding:2px 8px;border-radius:20px;background:var(--amber-dim);color:var(--amber)}
+
+  .paper-detail{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1rem}
+  .paper-detail h3{font-family:var(--font-display);font-size:1.2rem;margin-bottom:0.5rem}
+  .paper-detail .meta{font-size:12px;color:var(--text3);font-family:var(--font-mono);margin-bottom:1rem}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{background:var(--surface2);border-radius:var(--radius);padding:0.75rem}
+  .field-label{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);font-family:var(--font-mono);margin-bottom:4px}
+  .field-value{font-size:12px;color:var(--text);line-height:1.4}
+
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent2);border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  textarea{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:10px 12px;resize:vertical;line-height:1.5}
+  textarea:focus{outline:none;border-color:var(--accent)}
+  input[type="text"]{outline:none}
+  input[type="text"]:focus{border-color:var(--accent) !important}
+
+  .notice{font-size:11px;color:var(--text3);font-family:var(--font-mono);padding:8px 12px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border);margin-top:8px;line-height:1.5}
+  .empty-state{text-align:center;padding:3rem 1rem;color:var(--text3)}
+  .empty-state i{font-size:40px;margin-bottom:1rem;display:block}
+  .empty-state p{font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="logo">Research<span>Mind</span></div>
+    <span class="beta">AGENT v1.0</span>
+    <nav class="nav-tabs" id="navTabs">
+      <button class="nav-tab active" data-view="welcome">Overview</button>
+      <button class="nav-tab" data-view="extractions" id="tabExtractions" disabled>Extractions</button>
+      <button class="nav-tab" data-view="matrix" id="tabMatrix" disabled>Matrix</button>
+      <button class="nav-tab" data-view="gaps" id="tabGaps" disabled>Research Gaps</button>
+      <button class="nav-tab" data-view="qa" id="tabQA" disabled>Ask Agent</button>
+      <button class="nav-tab" data-view="escalation" id="tabEscalation" disabled>
+        Escalation <span id="escalBadge" style="display:none;background:var(--amber);color:#000;border-radius:20px;font-size:9px;padding:1px 6px;margin-left:2px"></span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Add Research Papers</div>
+        <div class="upload-zone" id="uploadZone">
+          <i class="ti ti-file-text" aria-hidden="true"></i>
+          <p>Drop PDF / TXT files here or click to upload</p>
+          <input type="file" id="fileInput" accept=".pdf,.txt" multiple />
+        </div>
+        <div class="notice">PDF text extraction works best with text-based PDFs. For scanned PDFs, paste the text below.</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Or paste paper text</div>
+        <textarea id="pasteArea" rows="5" placeholder="Paste abstract, introduction, or full paper text here..."></textarea>
+        <input type="text" id="pasteTitle" placeholder="Paper title (optional)" style="width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:8px 12px;margin-top:6px;" />
+        <button class="btn btn-outline btn-sm" id="addPasteBtn" style="margin-top:6px">
+          <i class="ti ti-plus" aria-hidden="true"></i> Add Paper
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Quick Demo</div>
+        <button class="btn btn-outline btn-sm" id="loadSamplesBtn">
+          <i class="ti ti-sparkles" aria-hidden="true"></i> Load 3 sample papers
+        </button>
+      </div>
+
+      <div class="sidebar-section" id="paperListSection" style="display:none">
+        <div class="sidebar-label">Queue (<span id="paperCount">0</span>)</div>
+        <div class="paper-list" id="paperList"></div>
+      </div>
+
+      <div class="sidebar-section" style="margin-top:auto">
+        <button class="btn btn-primary" id="runBtn" disabled>
+          <i class="ti ti-player-play" aria-hidden="true"></i> Run Agent
+        </button>
+        <button class="btn btn-outline" id="clearBtn" style="margin-top:6px">
+          <i class="ti ti-trash" aria-hidden="true"></i> Clear All
+        </button>
+      </div>
+    </aside>
+
+    <main class="panel">
+
+      <!-- WELCOME -->
+      <div class="view active" id="view-welcome">
+        <div class="welcome">
+          <h1>Your AI <em>Literature Review</em> Agent</h1>
+          <p>Upload research papers or paste abstracts. The agent autonomously extracts methodology, datasets, results, and limitations — then discovers research gaps and answers your questions with citations.</p>
+          <div class="welcome-cards">
+            <div class="wcard"><i class="ti ti-cpu" aria-hidden="true"></i><h3>Autonomous extraction</h3><p>Pulls title, methodology, datasets, metrics, and limitations from each paper.</p></div>
+            <div class="wcard"><i class="ti ti-table" aria-hidden="true"></i><h3>Literature matrix</h3><p>Auto-generates a structured comparison table across all uploaded papers.</p></div>
+            <div class="wcard"><i class="ti ti-bulb" aria-hidden="true"></i><h3>Gap discovery</h3><p>Identifies underexplored areas, common limitations, and future research directions.</p></div>
+            <div class="wcard"><i class="ti ti-message-circle" aria-hidden="true"></i><h3>Evidence-based QA</h3><p>Ask questions in plain language; get cited answers pointing to specific papers.</p></div>
+            <div class="wcard"><i class="ti ti-chart-bar" aria-hidden="true"></i><h3>Confidence scoring</h3><p>Every extraction scored. Low-confidence outputs flagged for human review.</p></div>
+            <div class="wcard"><i class="ti ti-alert-triangle" aria-hidden="true"></i><h3>Human escalation</h3><p>Uncertain or conflicting findings routed to a human reviewer automatically.</p></div>
+          </div>
+          <p style="font-size:13px;color:var(--text3)">← Load sample papers from the sidebar to try a live demo</p>
+        </div>
+      </div>
+
+      <!-- EXTRACTIONS -->
+      <div class="view" id="view-extractions">
+        <div class="results-header">
+          <h2>Paper Extractions</h2>
+          <span id="procStatus" style="font-size:12px;color:var(--text2);font-family:var(--font-mono)"></span>
+        </div>
+        <div class="stat-row" id="statRow" style="display:none">
+          <div class="stat accent"><div class="stat-num" id="statPapers">0</div><div class="stat-label">Papers</div></div>
+          <div class="stat teal"><div class="stat-num" id="statDone">0</div><div class="stat-label">Processed</div></div>
+          <div class="stat amber"><div class="stat-num" id="statEscal">0</div><div class="stat-label">Escalated</div></div>
+          <div class="stat"><div class="stat-num" id="statConf">—</div><div class="stat-label">Avg Confidence</div></div>
+        </div>
+        <div id="extractionsContainer"></div>
+      </div>
+
+      <!-- MATRIX -->
+      <div class="view" id="view-matrix">
+        <div class="results-header">
+          <h2>Literature Matrix</h2>
+          <button class="btn btn-outline btn-sm" id="exportMatrixBtn" style="width:auto">
+            <i class="ti ti-download" aria-hidden="true"></i> Export CSV
+          </button>
+        </div>
+        <div class="matrix-wrap">
+          <table id="matrixTable">
+            <thead><tr>
+              <th>Paper</th><th>Year</th><th>Domain</th><th>Methodology</th><th>Dataset</th><th>Key Metric</th><th>Strengths</th><th>Limitations</th>
+            </tr></thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- GAPS -->
+      <div class="view" id="view-gaps">
+        <div class="results-header">
+          <h2>Research Gap Analysis</h2>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <i class="ti ti-bulb card-icon" aria-hidden="true"></i>
+            <span class="card-title">Agent Summary</span>
+            <span class="card-badge badge-new">AI-Generated</span>
+          </div>
+          <p id="gapSummary" style="font-size:13px;color:var(--text2);line-height:1.7"></p>
+        </div>
+        <div class="gap-grid" id="gapGrid"></div>
+      </div>
+
+      <!-- QA -->
+      <div class="view" id="view-qa">
+        <div class="qa-wrap">
+          <div class="results-header">
+            <h2>Ask the Agent</h2>
+          </div>
+          <div class="qa-suggestion" id="qaChips"></div>
+          <div class="qa-history" id="qaHistory"></div>
+          <div class="qa-input-row">
+            <input class="qa-input" id="qaInput" type="text" placeholder="Which paper achieved the highest accuracy? What datasets were used?" />
+            <button class="qa-send" id="qaSend" disabled><i class="ti ti-send" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESCALATION -->
+      <div class="view" id="view-escalation">
+        <div class="results-header">
+          <h2>Human Escalation Queue</h2>
+        </div>
+        <div id="escalationContainer">
+          <div class="empty-state"><i class="ti ti-check" aria-hidden="true"></i><p>No escalations — all extractions passed the confidence threshold.</p></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+const API_URL = "https://api.anthropic.com/v1/messages";
+const MODEL = "claude-sonnet-4-20250514";
+
+// ── State ──────────────────────────────────────────────
+let papers = [];
+let results = [];
+let matrixData = [];
+let gapData = null;
+let escalations = [];
+let qaHistory = [];
+
+// ── Sample Papers ──────────────────────────────────────
+const SAMPLE_PAPERS = [
+  {
+    title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+    text: `Title: BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding
+Authors: Jacob Devlin, Ming-Wei Chang, Kenton Lee, Kristina Toutanova
+Year: 2019
+Abstract: We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers. As a result, the pre-trained BERT model can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of tasks, such as question answering and language inference, without substantial task-specific architecture modifications. BERT advances the state of the art for eleven NLP tasks.
+Methodology: Transformer-based deep bidirectional language model pre-trained using Masked Language Modeling (MLM) and Next Sentence Prediction (NSP) objectives on BooksCorpus and English Wikipedia.
+Dataset: BooksCorpus (800M words) and English Wikipedia (2,500M words) for pre-training. Fine-tuned on GLUE, SQuAD v1.1, SQuAD v2.0, SWAG benchmarks.
+Results: GLUE score: 80.5 (7.7% improvement). SQuAD v1.1 F1: 93.2. SQuAD v2.0 F1: 83.1.
+Limitations: High computational cost for pre-training. Fixed input sequence length of 512 tokens. Pretrain-finetune discrepancy due to [MASK] token. Poor performance on generative tasks.
+Future Work: Extending to multilingual settings, reducing computational requirements, exploring longer context models.`
+  },
+  {
+    title: "Attention Is All You Need",
+    text: `Title: Attention Is All You Need
+Authors: Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, Illia Polosukhin
+Year: 2017
+Abstract: The dominant sequence transduction models are based on complex recurrent or convolutional neural networks. We propose the Transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism to draw global dependencies between input and output. Transformers allow for significantly more parallelization and achieves a new state of the art in translation quality after being trained on four days on eight P100 GPUs.
+Methodology: Self-attention mechanism with multi-head attention, positional encoding, encoder-decoder architecture. No recurrence or convolution — purely attention-based.
+Dataset: WMT 2014 English-German dataset (4.5M sentence pairs) and WMT 2014 English-French dataset (36M sentence pairs).
+Results: BLEU score of 28.4 on EN-DE translation (2.0 improvement over best prior models). BLEU 41.0 on EN-FR. Training time reduced significantly vs LSTM models.
+Limitations: Quadratic complexity with respect to sequence length. Requires large datasets. Fixed positional encoding may not generalize well. Limited interpretability of attention patterns.
+Future Work: Apply to other modalities (images, audio), restrict attention to local neighborhoods, explore less sequential generation.`
+  },
+  {
+    title: "GPT-3: Language Models are Few-Shot Learners",
+    text: `Title: Language Models are Few-Shot Learners (GPT-3)
+Authors: Tom B. Brown, Benjamin Mann, Nick Ryder, et al.
+Year: 2020
+Abstract: We demonstrate that scaling language models greatly improves task-agnostic, few-shot performance. We train GPT-3, an autoregressive language model with 175 billion parameters, 10 times more than any previous non-sparse language model. GPT-3 achieves strong performance on many NLP benchmarks including translation, question-answering, and cloze tasks using only few-shot prompting with no gradient updates or fine-tuning.
+Methodology: Autoregressive transformer language model trained with standard language modeling objective on diverse internet text. Few-shot prompting evaluated without any fine-tuning.
+Dataset: Common Crawl (filtered, 410B tokens), WebText2, Books1, Books2, and English Wikipedia. Total 570GB training data.
+Results: SuperGLUE score 71.8, TriviaQA 71.2% accuracy, WebQuestions 41.5%. Achieved near-human performance on some tasks in few-shot setting.
+Limitations: Still struggles with reasoning tasks (arithmetic, common sense). Cannot update weights from context. Expensive inference. Significant carbon footprint from training. Prone to bias amplification. No citation or grounding.
+Future Work: Distillation for efficiency, improved grounding and factual accuracy, reducing societal biases, exploring alternative architectures.`
+  }
+];
+
+// ── DOM ────────────────────────────────────────────────
+const runBtn = document.getElementById("runBtn");
+const clearBtn = document.getElementById("clearBtn");
+const paperList = document.getElementById("paperList");
+const paperCount = document.getElementById("paperCount");
+const paperListSection = document.getElementById("paperListSection");
+const extractionsContainer = document.getElementById("extractionsContainer");
+const matrixBody = document.getElementById("matrixBody");
+const gapSummary = document.getElementById("gapSummary");
+const gapGrid = document.getElementById("gapGrid");
+const qaHistory_el = document.getElementById("qaHistory");
+const qaInput = document.getElementById("qaInput");
+const qaSend = document.getElementById("qaSend");
+const escalationContainer = document.getElementById("escalationContainer");
+const statRow = document.getElementById("statRow");
+const procStatus = document.getElementById("procStatus");
+const escalBadge = document.getElementById("escalBadge");
+const qaChips = document.getElementById("qaChips");
+
+// ── Navigation ─────────────────────────────────────────
+document.getElementById("navTabs").addEventListener("click", e => {
+  const tab = e.target.closest(".nav-tab");
+  if (!tab || tab.disabled) return;
+  switchView(tab.dataset.view);
+});
+
+function switchView(v) {
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.view === v));
+  document.querySelectorAll(".view").forEach(el => el.classList.toggle("active", el.id === "view-" + v));
+}
+
+// ── Upload ─────────────────────────────────────────────
+const uploadZone = document.getElementById("uploadZone");
+const fileInput = document.getElementById("fileInput");
+
+uploadZone.addEventListener("click", () => fileInput.click());
+uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
+uploadZone.addEventListener("drop", e => {
+  e.preventDefault();
+  uploadZone.classList.remove("drag");
+  [...e.dataTransfer.files].forEach(readFile);
+});
+fileInput.addEventListener("change", () => {
+  [...fileInput.files].forEach(readFile);
+  fileInput.value = "";
+});
+
+function readFile(f) {
+  const reader = new FileReader();
+  reader.onload = () => addPaper(f.name, reader.result);
+  reader.readAsText(f);
+}
+
+// ── Paste ──────────────────────────────────────────────
+document.getElementById("addPasteBtn").addEventListener("click", () => {
+  const text = document.getElementById("pasteArea").value.trim();
+  const title = document.getElementById("pasteTitle").value.trim() || "Pasted Paper " + (papers.length + 1);
+  if (!text) return;
+  addPaper(title, text);
+  document.getElementById("pasteArea").value = "";
+  document.getElementById("pasteTitle").value = "";
+});
+
+// ── Samples ────────────────────────────────────────────
+document.getElementById("loadSamplesBtn").addEventListener("click", () => {
+  SAMPLE_PAPERS.forEach(p => addPaper(p.title, p.text));
+});
+
+// ── Paper Management ───────────────────────────────────
+function addPaper(title, text) {
+  const id = Date.now() + Math.random();
+  papers.push({ id, title, text, status: "queued" });
+  renderPaperList();
+  runBtn.disabled = false;
+}
+
+function removePaper(id) {
+  papers = papers.filter(p => p.id !== id);
+  renderPaperList();
+  if (!papers.length) runBtn.disabled = true;
+}
+
+function renderPaperList() {
+  paperCount.textContent = papers.length;
+  paperListSection.style.display = papers.length ? "flex" : "none";
+  paperList.innerHTML = papers.map(p => `
+    <div class="paper-item ${p.status}" id="pi-${p.id}">
+      <i class="ti ti-file-text" style="font-size:14px;color:var(--text3);flex-shrink:0;margin-top:1px" aria-hidden="true"></i>
+      <div style="flex:1;min-width:0">
+        <div class="paper-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.title}">${p.title}</div>
+        <div class="paper-status ${p.status}">${statusLabel(p.status)}</div>
+      </div>
+      <button class="paper-remove" onclick="removePaper(${p.id})" title="Remove"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>`).join("");
+}
+
+function statusLabel(s) {
+  return { queued: "⏳ queued", processing: "⚡ processing…", done: "✓ done", error: "✗ error", escalated: "⚠ escalated" }[s] || s;
+}
+
+// ── Clear ──────────────────────────────────────────────
+clearBtn.addEventListener("click", () => {
+  papers = []; results = []; matrixData = []; gapData = null; escalations = []; qaHistory = [];
+  renderPaperList();
+  runBtn.disabled = true;
+  extractionsContainer.innerHTML = "";
+  matrixBody.innerHTML = "";
+  gapSummary.textContent = "";
+  gapGrid.innerHTML = "";
+  qaHistory_el.innerHTML = "";
+  escalationContainer.innerHTML = `<div class="empty-state"><i class="ti ti-check" aria-hidden="true"></i><p>No escalations.</p></div>`;
+  statRow.style.display = "none";
+  escalBadge.style.display = "none";
+  ["tabExtractions","tabMatrix","tabGaps","tabQA","tabEscalation"].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+  switchView("welcome");
+});
+
+// ── Run Agent ──────────────────────────────────────────
+runBtn.addEventListener("click", async () => {
+  if (!papers.length) return;
+  runBtn.disabled = true;
+  results = []; escalations = [];
+  switchView("extractions");
+  document.getElementById("tabExtractions").disabled = false;
+  statRow.style.display = "grid";
+  extractionsContainer.innerHTML = "";
+
+  for (let i = 0; i < papers.length; i++) {
+    const paper = papers[i];
+    paper.status = "processing";
+    renderPaperList();
+    procStatus.textContent = `Processing ${i + 1} of ${papers.length}…`;
+    updateStats();
+    try {
+      const result = await extractPaper(paper);
+      results.push(result);
+      paper.status = result.escalate ? "escalated" : "done";
+      if (result.escalate) escalations.push(result);
+      renderExtraction(result);
+    } catch (e) {
+      paper.status = "error";
+      const errResult = { id: paper.id, title: paper.title, error: e.message, escalate: true, escalationReason: "API error: " + e.message, confidence: 0 };
+      results.push(errResult);
+      escalations.push(errResult);
+      renderExtraction(errResult);
+    }
+    renderPaperList();
+    updateStats();
+  }
+
+  procStatus.textContent = `✓ ${results.length} paper${results.length !== 1 ? "s" : ""} processed`;
+
+  await generateMatrix();
+  await generateGaps();
+
+  ["tabMatrix","tabGaps","tabQA","tabEscalation"].forEach(id => {
+    document.getElementById(id).disabled = false;
+  });
+  qaSend.disabled = false;
+
+  if (escalations.length) {
+    escalBadge.style.display = "inline";
+    escalBadge.textContent = escalations.length;
+    renderEscalations();
+  }
+  renderQAChips();
+  runBtn.disabled = false;
+});
+
+// ── Claude API ─────────────────────────────────────────
+async function callClaude(messages, system) {
+  const resp = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1000, system, messages })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`API ${resp.status}: ${errText}`);
+  }
+  const data = await resp.json();
+  return data.content.map(c => c.text || "").join("");
+}
+
+// ── Stage 2: Extraction ────────────────────────────────
+async function extractPaper(paper) {
+  const system = `You are a research paper analysis agent. Extract structured information from the given paper text.
+Respond ONLY with a valid JSON object. No markdown fences, no explanation, no preamble. Use this exact schema:
+{
+  "title": string,
+  "authors": string,
+  "year": string,
+  "domain": string,
+  "paperType": "Experimental Study" | "Review Paper" | "Survey Paper" | "Framework Proposal" | "Other",
+  "researchProblem": string,
+  "objectives": string,
+  "methodology": string,
+  "dataset": string,
+  "modelsAlgorithms": string,
+  "evaluationMetrics": string,
+  "keyResults": string,
+  "limitations": string,
+  "futureWork": string,
+  "keywords": [string],
+  "confidence": number between 0.0 and 1.0 — how confident you are in extraction quality,
+  "escalate": boolean — true if confidence < 0.6, key sections are missing, or information is ambiguous/conflicting,
+  "escalationReason": string — if escalate is true, explain specifically why; otherwise empty string
+}`;
+  const raw = await callClaude(
+    [{ role: "user", content: `Extract structured information from this paper:\n\n${paper.text.slice(0, 4000)}` }],
+    system
+  );
+  const clean = raw.replace(/```json|```/g, "").trim();
+  const parsed = JSON.parse(clean);
+  return { ...parsed, id: paper.id, originalText: paper.text };
+}
+
+function renderExtraction(r) {
+  if (r.error) {
+    extractionsContainer.insertAdjacentHTML("beforeend", `
+      <div class="paper-detail">
+        <div style="color:var(--red)"><i class="ti ti-alert-circle" aria-hidden="true"></i> Error processing "${r.title}": ${r.error}</div>
+      </div>`);
+    return;
+  }
+  const confPct = Math.round((r.confidence || 0) * 100);
+  const confColor = confPct >= 75 ? "var(--green)" : confPct >= 55 ? "var(--amber)" : "var(--red)";
+  extractionsContainer.insertAdjacentHTML("beforeend", `
+    <div class="paper-detail">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:0.75rem">
+        <div style="flex:1">
+          <h3>${r.title || "Untitled"}</h3>
+          <div class="meta">${r.authors || ""}${r.year ? " · " + r.year : ""}${r.domain ? " · " + r.domain : ""}${r.paperType ? " · " + r.paperType : ""}</div>
+        </div>
+        ${r.escalate
+          ? `<span class="card-badge badge-flag">⚠ Escalated</span>`
+          : `<span class="card-badge badge-new">✓ ${confPct}% confident</span>`}
+      </div>
+      <div style="margin-bottom:1rem">
+        <div class="confidence-bar">
+          <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono);width:80px">Confidence</span>
+          <div class="confidence-track"><div class="confidence-fill" style="width:${confPct}%;background:${confColor}"></div></div>
+          <span style="font-size:11px;color:${confColor};font-family:var(--font-mono)">${confPct}%</span>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><div class="field-label">Research Problem</div><div class="field-value">${r.researchProblem || "—"}</div></div>
+        <div class="field"><div class="field-label">Methodology</div><div class="field-value">${r.methodology || "—"}</div></div>
+        <div class="field"><div class="field-label">Dataset</div><div class="field-value">${r.dataset || "—"}</div></div>
+        <div class="field"><div class="field-label">Models / Algorithms</div><div class="field-value">${r.modelsAlgorithms || "—"}</div></div>
+        <div class="field"><div class="field-label">Evaluation Metrics</div><div class="field-value">${r.evaluationMetrics || "—"}</div></div>
+        <div class="field"><div class="field-label">Key Results</div><div class="field-value">${r.keyResults || "—"}</div></div>
+        <div class="field"><div class="field-label">Limitations</div><div class="field-value">${r.limitations || "—"}</div></div>
+        <div class="field"><div class="field-label">Future Work</div><div class="field-value">${r.futureWork || "—"}</div></div>
+      </div>
+      ${r.keywords && r.keywords.length ? `<div style="margin-top:0.75rem">${r.keywords.map(k => `<span class="cell-tag">${k}</span>`).join("")}</div>` : ""}
+      ${r.escalate ? `
+        <div style="margin-top:0.75rem;padding:8px 12px;background:var(--amber-dim);border-radius:var(--radius);border:1px solid #4d3010">
+          <span style="font-size:12px;color:var(--amber)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Escalation reason: ${r.escalationReason}</span>
+        </div>` : ""}
+    </div>`);
+}
+
+function updateStats() {
+  document.getElementById("statPapers").textContent = papers.length;
+  document.getElementById("statDone").textContent = results.filter(r => !r.escalate && !r.error).length;
+  document.getElementById("statEscal").textContent = escalations.length;
+  const confs = results.filter(r => typeof r.confidence === "number").map(r => r.confidence);
+  document.getElementById("statConf").textContent = confs.length
+    ? Math.round(confs.reduce((a, b) => a + b, 0) / confs.length * 100) + "%"
+    : "—";
+}
+
+// ── Stage 5: Literature Matrix ─────────────────────────
+async function generateMatrix() {
+  if (!results.length) return;
+  const summaries = results.map(r => `
+Paper: ${r.title}
+Year: ${r.year || ""}
+Domain: ${r.domain || ""}
+Methodology: ${r.methodology || ""}
+Dataset: ${r.dataset || ""}
+Key Results: ${r.keyResults || ""}
+Limitations: ${r.limitations || ""}`).join("\n---\n");
+
+  const system = `You are a research analyst. Generate a structured literature comparison matrix.
+Respond ONLY with a valid JSON array (no markdown, no fences). Each element:
+{"title":string,"year":string,"domain":string,"methodology":string,"dataset":string,"keyMetric":string,"strengths":string,"limitations":string}
+Keep each field concise — maximum 12 words per field.`;
+
+  const raw = await callClaude([{ role: "user", content: summaries }], system);
+  const clean = raw.replace(/```json|```/g, "").trim();
+  try {
+    matrixData = JSON.parse(clean);
+    renderMatrix();
+  } catch (e) { console.error("Matrix parse error:", e, raw); }
+}
+
+function renderMatrix() {
+  matrixBody.innerHTML = matrixData.map(row => `
+    <tr>
+      <td style="font-weight:500;max-width:150px">${row.title || ""}</td>
+      <td><span class="cell-tag teal">${row.year || ""}</span></td>
+      <td>${row.domain || ""}</td>
+      <td>${row.methodology || ""}</td>
+      <td>${row.dataset || ""}</td>
+      <td>${row.keyMetric || ""}</td>
+      <td style="color:var(--green)">${row.strengths || ""}</td>
+      <td style="color:var(--red)">${row.limitations || ""}</td>
+    </tr>`).join("");
+}
+
+document.getElementById("exportMatrixBtn").addEventListener("click", () => {
+  if (!matrixData.length) return;
+  const headers = ["Title", "Year", "Domain", "Methodology", "Dataset", "Key Metric", "Strengths", "Limitations"];
+  const rows = matrixData.map(r =>
+    [r.title, r.year, r.domain, r.methodology, r.dataset, r.keyMetric, r.strengths, r.limitations]
+      .map(v => `"${(v || "").replace(/"/g, '""')}"`)
+      .join(",")
+  );
+  const csv = [headers.join(","), ...rows].join("\n");
+  const a = document.createElement("a");
+  a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  a.download = "literature_matrix.csv";
+  a.click();
+});
+
+// ── Stage 6: Research Gap Discovery ───────────────────
+async function generateGaps() {
+  if (!results.length) return;
+  const allData = results.map(r =>
+    `Title: ${r.title}\nLimitations: ${r.limitations || ""}\nFutureWork: ${r.futureWork || ""}\nMethodology: ${r.methodology || ""}\nDataset: ${r.dataset || ""}`
+  ).join("\n===\n");
+
+  const system = `You are a research gap discovery engine. Analyze the provided paper extractions and identify research gaps, trends, and opportunities.
+Respond ONLY with a valid JSON object (no markdown, no fences):
+{
+  "summary": string (2-3 sentences describing the overall research landscape and key patterns),
+  "gaps": [
+    {"title": string, "description": string, "type": "gap" | "trend" | "limitation"}
+  ]
+}
+Include 4-6 gap/trend/limitation items covering different aspects.`;
+
+  const raw = await callClaude([{ role: "user", content: allData }], system);
+  const clean = raw.replace(/```json|```/g, "").trim();
+  try {
+    gapData = JSON.parse(clean);
+    gapSummary.textContent = gapData.summary || "";
+    gapGrid.innerHTML = (gapData.gaps || []).map(g => {
+      const cls = g.type === "trend" ? "trend" : g.type === "limitation" ? "limitation" : "";
+      const icon = g.type === "trend" ? "trending-up" : g.type === "limitation" ? "alert-triangle" : "bulb";
+      return `
+        <div class="gap-item ${cls}">
+          <h4><i class="ti ti-${icon}" aria-hidden="true"></i> ${g.title}</h4>
+          <p>${g.description}</p>
+        </div>`;
+    }).join("");
+  } catch (e) { console.error("Gap parse error:", e, raw); }
+}
+
+// ── Stage 8: Escalation ────────────────────────────────
+function renderEscalations() {
+  if (!escalations.length) return;
+  escalationContainer.innerHTML = escalations.map(e => `
+    <div class="escalation-item">
+      <h4><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${e.title || "Unknown Paper"}</h4>
+      <p>${e.escalationReason || "Extraction confidence below acceptable threshold."}</p>
+      <div class="escalation-meta">
+        <span class="emeta">Confidence: ${Math.round((e.confidence || 0) * 100)}%</span>
+        <span class="emeta">Action: Human Review Required</span>
+      </div>
+    </div>`).join("");
+}
+
+// ── Stage 7: QA ────────────────────────────────────────
+function renderQAChips() {
+  const chips = [
+    "Which dataset is most commonly used?",
+    "What are the common limitations across papers?",
+    "Which paper achieved the best performance?",
+    "What methods are underexplored?"
+  ];
+  qaChips.innerHTML = chips.map(c =>
+    `<button class="qa-chip" onclick="setQAInput('${c.replace(/'/g, "\\'")}')">${c}</button>`
+  ).join("");
+}
+
+function setQAInput(q) {
+  qaInput.value = q;
+  qaInput.focus();
+}
+
+qaSend.addEventListener("click", sendQA);
+qaInput.addEventListener("keydown", e => { if (e.key === "Enter" && !qaSend.disabled) sendQA(); });
+
+async function sendQA() {
+  const q = qaInput.value.trim();
+  if (!q || !results.length) return;
+  qaInput.value = "";
+  qaSend.disabled = true;
+
+  qaHistory.push({ role: "user", content: q });
+  renderQAHistory();
+
+  const context = results.map(r =>
+    `[${r.title} (${r.year || "n.d."})]\nMethodology: ${r.methodology || ""}\nDataset: ${r.dataset || ""}\nResults: ${r.keyResults || ""}\nLimitations: ${r.limitations || ""}`
+  ).join("\n\n---\n\n");
+
+  const system = `You are a research literature assistant. Answer questions using ONLY the provided paper extractions as your knowledge source.
+- Cite specific papers by title when making claims.
+- Be concise and evidence-based.
+- If the answer is not in the papers, say so clearly.
+- End every response with a line: CITATIONS: [paper title 1], [paper title 2], ...`;
+
+  try {
+    const answer = await callClaude([{
+      role: "user",
+      content: `Paper extractions:\n\n${context}\n\nQuestion: ${q}`
+    }], system);
+
+    const parts = answer.split("CITATIONS:");
+    const mainAnswer = parts[0].trim();
+    const cites = parts[1] ? parts[1].trim() : "";
+    qaHistory.push({ role: "agent", content: mainAnswer, citations: cites });
+  } catch (e) {
+    qaHistory.push({ role: "agent", content: "Error contacting the agent: " + e.message, citations: "" });
+  }
+
+  renderQAHistory();
+  qaSend.disabled = false;
+}
+
+function renderQAHistory() {
+  qaHistory_el.innerHTML = qaHistory.map(m => `
+    <div class="qa-bubble ${m.role === "user" ? "user" : "agent"}">
+      ${m.content}
+      ${m.citations ? `<div class="cite"><i class="ti ti-link" aria-hidden="true"></i> ${m.citations}</div>` : ""}
+    </div>`).join("");
+  qaHistory_el.scrollTop = qaHistory_el.scrollHeight;
+}
+</script>
+</body>
+</html>
